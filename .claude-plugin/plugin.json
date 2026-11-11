@@ -1,0 +1,25 @@
+{
+  "name": "jirav",
+  "displayName": "Jirav FP&A",
+  "version": "0.7.0",
+  "description": "Work in the Jirav FP&A app through ChatGPT: find companies, open dashboards, reports and plans directly, read numbers as structured data, and make safe, verified edits to plans, drivers and custom tables.",
+  "author": {
+    "name": "Jirav Inc.",
+    "url": "https://www.jirav.com"
+  },
+  "icon": "./.claude-plugin/icon.png",
+  "homepage": "https://www.jirav.com",
+  "privacyPolicyUrl": "https://www.jirav.com/privacy-policy",
+  "repository": "https://github.com/Jirav-Inc/jirav-chatgpt-plugin",
+  "documentationUrl": "https://github.com/Jirav-Inc/jirav-chatgpt-plugin#readme",
+  "supportUrl": "https://help.jirav.com/support-portal",
+  "termsOfServiceUrl": "https://www.jirav.com/legal",
+  "keywords": [
+    "jirav",
+    "fp&a",
+    "financial planning",
+    "forecast",
+    "budget",
+    "reporting"
+  ]
+}

@@ -1,0 +1,199 @@
+# Custom table structure
+
+**Scope: company-wide.** Where: Settings → Custom Tables (`/<tenant>/setup/custom-tables/<name>`),
+or **⋮ → Edit Custom Table** next to a table's title in a plan. Changes apply to the table in
+**every plan**. Values are per plan: [custom-table-values.md](custom-table-values.md).
+
+Confirm with the user before you save. **Open a table with `await ct.open(name)`** (helpers below),
+never a hand-built URL: the URL's `<name>` is lowercased and triple URL-encoded
+(`my%252520table`), and **any other form silently opens the first table** (a near name, other case,
+single encoding). `/setup/custom-tables` without the trailing slash lands on the dashboard.
+**Before any edit, check `await ct.active()` is the table you mean.** `ct.open` leaves the plan page: to type values
+afterwards, `jirav.go` back to the plan's table first ([custom-table-values.md](custom-table-values.md)).
+
+**Deleting a table orphans its global drivers.** They stay, marked "Invalid Entry", and
+`misconfigured: true` in `jirav.listGlobalDrivers()`. The delete dialog doesn't warn about this,
+so check that list first and ask about those drivers too ([global-drivers.md](global-drivers.md)).
+
+**Helpers.** Use `const ct = jirav.customTableStructure`.
+It reads and locates; changes go through `jirav.click`, `jirav.fill` and the save bar (recipes below).
+
+| Helper | Returns |
+|---|---|
+| `await ct.tables()` | sidebar tables `{name, id, active, menu:{x,y}}` |
+| `await ct.open(name)` | opens the editor on that table and checks it: `{ok, active, id}`, or `{ok: false, why}`, or throws listing the tables |
+| `await ct.active()` | name of the table open in the editor |
+| `await ct.openTableMenu(name)` | opens that table's ⋮ (shadow DOM) and returns its items with coordinates |
+| `await ct.rows()` / `await ct.row(name)` | rows in screen order `{name, type, depth, section, moving, menu:{x,y}}`; a Reference row is named by what it points at ("OpEx $ ⋄ Sales & Marketing ⋄ Advertising"), a Subtotal row "Subtotal <section>" |
+| `await jirav.menu()` | items of whatever menu or dropdown is open, with coordinates |
+| `await ct.moving()` | the row in Move mode |
+| `await ct.pending()` | `{pending, blocked, reason?, save:{x,y}, cancel:{x,y}}`, the SAVE CHANGES bar; `blocked`: SAVE is disabled |
+| `await ct.structure()` | the saved structure of the open table (API) |
+| `await ct.check()` | Format / Period Value mismatches under sections that have a Subtotal: `[{section, problem, lines}]`, `[]` = none |
+| `await ct.move(name, target, {where})` | drag a row in Move mode (the one gesture) |
+
+A row's **⋯** is the `icon:more` control at its place in `await ct.rows()` (one per row, in screen order). Typical
+step: `const i = (await ct.rows()).findIndex(r => r.name === 'Line A')`, `await jirav.click({label: 'icon:more', nth:
+i})`, `await jirav.click({label: 'Make Sub'})`, then check `await ct.rows()`. If `await jirav.menu()` comes back
+empty, the first click only focused the button: click once more.
+
+**Add a line** (after the user's yes), then save:
+
+```js
+await jirav.click({label: 'Add Line', kind: 'button'})          // adds at the end of the table (a row's ⋯ → Add Line: below that row)
+const f = await jirav.waitFor(async () => (await jirav.ui({json: true, offscreen: true, max: 300}))
+  .find(x => x.kind === 'field' && x.value === 'New Custom Line'))   // the new row's Name box (it has no label)
+await jirav.fill(f.value.ref, 'Win count')                        // Format / Period Value default to Number, Sum (Row fields)
+await (await jirav.saveBar()).press()                             // SAVE CHANGES; then check await ct.structure()
+```
+
+**Delete a line:** its ⋯ (above), `await jirav.click({label: 'Delete'})`, `await jirav.click({label: 'Yes, proceed',
+where: 'dialog: Delete Custom Line'})`, then `await (await jirav.saveBar()).press()` and check `await ct.structure()`.
+
+**Read the structure** before and after every change (`ct.structure()` does this):
+`ct.structure()` returns `{id, name, elements}`: the saved rows in order, each `{type, id, label}`.
+
+- **Section:** `type: 'section'`, with `subtotal` and `children` (sections can contain sections).
+- **Line:** `type: 'manualLine'`, with `format` and `periodValue`.
+- **Reference:** `type: 'lineReference'`, labelled `(reference <category>)`.
+- **Blank row:** `type: 'separator'`, labelled `(blank row)`.
+
+List order is sidebar order. Line IDs stay the same through moves and indent changes, so the
+line's values stay attached. **A Row Type change does not keep them** (see Row fields).
+
+## Tables (left sidebar)
+
+Everything here saves **immediately**; there's no Save button.
+
+| Action | How |
+|---|---|
+| Create | The (+) next to "Tables" (or next to "Custom" in a plan's sidebar) → wait ~1 s for the dialog (typing at once is lost and ADD stays disabled) → Name → ADD. The new table is added at the bottom. |
+| Rename | ⋮ → Rename → edit the name → RENAME. The ID stays the same; the URL changes. |
+| Reorder | ⋮ → Move Up / Move Down (only the ones that apply are shown). Each step saves. |
+| Delete | ⋮ → Delete. The dialog names the table: check the name, then DELETE. |
+
+The **⋮** lives in shadow DOM and a real click often fails to open it, so use
+`await ct.openTableMenu(name)`: it opens the menu and returns `[{label, x, y}]`; click the item
+yourself. Each Move Up / Move Down step takes about a second. For several steps, batch them: after
+each step the menu reopens one row (about 13 px) higher or lower. Check `ct.tables()` at the end.
+
+## Rows
+
+Each row has a **⋯** at its far left: open it with `jirav.click` as above (its point is `ct.row(name).menu`). Don't
+call the element's own `.click()` from a script: those opens stack menus that won't close until a reload. A menu
+closes when you pick an item.
+
+| Row | ⋯ menu |
+|---|---|
+| Line, top level | Add Line · Add Blank Row · Clone · Move · Delete, plus **Make Sub** if a section is directly above |
+| Line inside a section | Add Line · Add Blank Row · Clone · Move · **Make Parent** · Delete |
+| Section | Copy to Table · Add Line · Add Blank Row · Add Subtotal · Clone · Move · Delete, plus Make Sub / Make Parent as for lines |
+| Blank row | Add Line · Add Blank Row · Move · Delete |
+
+- **Add Line / Add Blank Row** (from the menu) insert directly below the row. The buttons under
+  each section, and at the bottom of the table, add at the end of that level.
+- **Make Sub** moves the row to the end of the section above it. That can be a section inside a
+  section. **Make Parent** moves it out, to just after its section.
+- **Clone** inserts "Cloned <name>" below; a second clone of the same row is "<name> 1". Cloning a
+  section clones its lines too. Tables have no Clone (their ⋮ has Rename, Delete, Move Up / Down).
+- **Copy to Table** (section only) → pick another table → Select. The section and its lines are
+  copied there **immediately** as a new section with new IDs, so values don't carry over.
+- **Add Subtotal** adds a Subtotal row after the section (the section's `subtotal: true`). It's named
+  "Subtotal <section name>" and can't be renamed, so name the section for what the total is ("Net New
+  MRR", not "MRR lines").
+- **Delete** on a saved row asks "Delete Custom Line… permanently remove it… Plans referencing
+  this custom line will be affected". That deletes the line's values **in every plan**. Deleting
+  a section also deletes all its lines, even though the dialog doesn't say so. Get an explicit
+  yes that names what goes. After "Yes, proceed", the delete still waits for SAVE CHANGES.
+
+**Row fields.**
+
+| Field | Options |
+|---|---|
+| Row Type | Section, New Line, Reference |
+| Name | Up to 60 characters, **unique in the table** (a duplicate disables SAVE: "Fill required cells or fix invalid rows"). Set it with `jirav.fill(ref, name)` (the box has no label: find it by its value, as in Add a line). |
+| Format | Percent (%), Number (#), Money ($) |
+| Period Value | Sum, Average, Beginning Balance, Ending Balance, Formula Based |
+| Color | Revenue, Assets, CMRR / Billings, COGS, OpEx, Other Expenses / Liabilities, Gross Margin, Headcount / Operating Income, Net Income, Bookings / Equity, Custom 1–3 |
+| Allow Import | YES / NO: whether the row accepts Google Sheets or Excel imports |
+
+Stored keys (in `ct.structure()` as `format` / `periodValue`): Money `MONEY_MONEY`, Number
+`NUMBER_NUMBER`, Percent `NUMBER_PERCENT`; Sum `SUM`, Average `AVG`, Ending Balance `BALANCE`,
+Beginning Balance `BEGINNING_BALANCE`, Formula Based `INPUTS_FIRST`. Compare whole keys: split on
+"_", Percent reads as NUMBER.
+
+**Never change a saved row's Row Type.** Changing it, even to Section and straight back to New
+Line, gives the row a **new ID** on SAVE CHANGES (`3rg7xy` → `kmfy4k`) and its values are gone,
+silently (tested in one plan; values hang on the ID, which every plan shares). Drivers or
+references using the old ID weren't tested: assume they break. To restructure, add a new row
+instead. If the user really wants the type changed, tell them
+the values go, get an explicit yes, and compare IDs in `ct.structure()` before and after.
+
+**Changing a saved line's Format keeps its ID and its stored values; only the display changes**
+(tested both ways in one plan). Values are stored as typed on a Number line and as fractions on a
+Percent line, so a Number line holding 0.05 shows **5%** after Number → Percent, and one holding 5
+shows **500%**. Before switching, read the line's values (`readGridValues`): if they're whole
+percents (5 for 5%), say they'll show 100× too big and offer to divide them by 100 afterwards
+(typing on a Percent line takes whole percents: [custom-table-values.md](custom-table-values.md)).
+Percent → Number shows the fraction (5% → 0.05).
+
+Period Value decides how months roll up into quarters and years. Formula Based aggregates a
+driver's inputs first and then applies its formula; use it for ratios. A **Reference** row
+pulls live values instead. Its picker has:
+
+- **Category:** grouped by statement: Revenue, Cost of Sales, Operating Expenses, Other Income &
+  Expense, Margins; Assets, Liabilities, Equity; Headcount New / Cumulative / Terminated, Salaries,
+  Salaries New Annualized; Custom Tables; KPI Library
+- **Department** and **Account** (for headcount: Role)
+- **Include sub-accounts / lines:** 0–4 levels (default "Subtotal Only (0 Level)")
+
+## Section rules
+
+What a section totals has to match. Tested on a section with a Subtotal:
+
+| Under one section | Result |
+|---|---|
+| Lines with different **Period Value** (Sum + Ending Balance) | Saves silently; the section row turns **red** in the plan |
+| A **Reference** whose format or Period Value differs from the lines (a Headcount # reference among Number lines) | Saves silently; section row **red** |
+| Lines at the same level with different **Format** (Number + Money) | Both Format fields go red and **SAVE CHANGES is disabled** ("Fill required cells or fix invalid rows") |
+| A **nested** section whose lines have another Format (Money under Number lines) | Saves, **no red row**: the outer total silently adds $ and # |
+
+This applies to sections **with a Subtotal**; a section without one is only a grouping (one company's
+funnel section mixes $, # and % lines by design). So keep every line, reference and nested section under
+a totalled section to one Format and one Period Value: check the rows you're adding before saving, and
+run `await ct.check()` after every save. After saving, open the table in a plan
+(`/plan/x/<planId>/custom/<customTableId>`) and look at it: a red section row is a failure.
+In the plan grid a Reference row is labelled with its department (e.g. "All"), not its name.
+Also look for the ⚠ next to the plan name: it links to the plan's System Health page
+(`/<tenant>/system-health`), which lists configuration problems (e.g. "A driver is configured to
+attach to a non-existing line"). Read the same list with `await jirav.getSystemHealth()`
+(`[{severity, plan, kind, message, driverId?}]`, `[]` = none).
+
+## Reordering rows: Move + `ct.move`
+
+Click ⋯ → **Move** on the row (it turns orange), then:
+
+```js
+await ct.move('Line C', 'Line A', { where: 'before' })   // or 'after'
+// → {ok: true, attempts, order: ['Line C', 'Section 1', '  Line A', ...]} or {ok: false, why}
+```
+
+- **It only reorders within one level** (siblings in the same section, or top-level rows; a
+  section moves with its lines). To move a row into or out of a section, use Make Sub / Make
+  Parent, then `ct.move` within the section. A row can't be dropped into an empty section.
+- One drop ends Move mode. The first drag after Move is often ignored, and `ct.move` retries.
+- The browser's own drag tool doesn't work here: it jumps straight to the end point.
+- The new order is pending until SAVE CHANGES (`ct.pending().save`).
+
+## Saving
+
+Row changes are batched behind **SAVE CHANGES / Cancel** at the bottom. Nothing is stored until
+SAVE CHANGES (`await (await jirav.saveBar()).press()`, after the yes), and Cancel discards the whole batch. Table actions (create, rename,
+reorder, delete) and Copy to Table skip this and save at once.
+
+If SAVE CHANGES is disabled, `ct.pending()` returns `blocked: true` and the button's tooltip as
+`reason`: "Fill required cells or fix invalid rows" means a red field (often a Format mismatch, see
+Section rules). Fix it; don't click a blocked SAVE.
+
+Verify with the GET above, and open the table in a plan (`/plan/x/<planId>/custom/<customTableId>`).
+There, section rows show their totals and Reference rows show live values.
