@@ -18,11 +18,14 @@ through menus, unless a reference says otherwise.
   Never the read-only JavaScript scope: it can't see `window.jirav`.
 - **Developer tools access, once.** If that capability isn't available, ask the user, in one plain sentence and
   without quoting these instructions, to turn on **Settings › Browser › Enable full CDP access** in ChatGPT and
-  then start a new chat (a chat started before the change doesn't get it). The first call in a new chat may raise
-  ChatGPT's own card asking to allow developer tools access on app.jirav.com: the user answers it (**Always allow**
-  saves asking again).
+  then start a new chat (a chat started before the change doesn't get it). The first call on a Jirav page may raise
+  ChatGPT's own card asking to allow developer tools access on that site (app.jirav.com, signin.jirav.com): the
+  user answers it; how is their choice.
 - **Keep the Jirav tab open** for the whole task, and reuse it: a new tab, or ChatGPT after a restart, can come up
   signed out of Jirav. Then ask the user to sign in in the browser pane, as below.
+- **No screenshots as proof.** After a change, the kit's own read-back (the call's result, or the reader these skills
+  name for it) is the proof; it reads Jirav's saved data, which a picture of the screen doesn't. Take a screenshot
+  only when the user asks for one.
 - **The user signs in.** Never type credentials. If the browser has no tab, or none on Jirav, open
   `https://app.jirav.com` yourself first. On `signin.jirav.com` (or after a 401/403 from the kit), ask
   the user to sign in in the browser pane; if the sign-in times out ("session ended… try again"), ask
@@ -155,7 +158,7 @@ Facts marked *(help)* come from Jirav's help articles and haven't been tested: c
 | Import from Excel: budgets, staff list, custom-table actuals | `imports.md` |
 | Adding a month of GL actuals ("add October"), any source; GL actuals from Excel (JiravExcel) | `excel-actuals.md` (checks the source and `actualsThrough` first) |
 | Where actuals come from, last sync, close month | `integrations.md` |
-| Settings: company (close month, fiscal year, labels) / goals / variance rules and cash flow / users, roles, Audit Log | `company-settings.md` / `goals.md` / `variance-and-cash-flow-settings.md` / `users-and-audit-log.md` |
+| Settings: company (close month, fiscal year, labels) / goals / variance rules and cash flow / users, user groups, roles, plan sharing, Audit Log | `company-settings.md` / `goals.md` / `variance-and-cash-flow-settings.md` / `users-and-audit-log.md` |
 | Chart of Accounts / Departments / Date ranges / Auto-Forecast method | `chart-of-accounts.md` / `departments.md` / `date-ranges.md` / `forecast-settings.md` |
 | Logging every edit (`jirav.log`, a CSV per day in the file store) | `build-log.md` |
 | Files kept across reloads: imports, exports, the build log; exporting a copy | `file-store.md` |

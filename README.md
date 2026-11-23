@@ -17,8 +17,8 @@ signed-in session.
 - Use the **ChatGPT desktop app**: Jirav runs in its built-in browser.
 - In ChatGPT, open **Settings › Browser** and turn on **Enable full CDP access**. The plugin needs it to read
   Jirav's pages accurately. Then start a new chat.
-- The first time ChatGPT works in Jirav, it asks to allow developer tools access on app.jirav.com: click
-  **Always allow**.
+- The first time ChatGPT works in Jirav, it asks to allow developer tools access on Jirav's pages (app.jirav.com,
+  and signin.jirav.com while you sign in): allow it, or the plugin can't read Jirav.
 - Sign in to Jirav in ChatGPT's browser pane when it asks (again after ChatGPT restarts).
 
 ## Install
